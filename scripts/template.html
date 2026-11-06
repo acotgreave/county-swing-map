@@ -1,0 +1,335 @@
+<title>County Swing Machine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Layout: slim brand bar, one title+controls band, then the map sized to the remaining viewport height. */
+:root{
+  --paper:#FAF9F6; --paper-alt:#F3F1EC; --panel:#FFFFFF; --hairline:#E4E1DA;
+  --ink:#0B1220; --body:#3B4656; --muted:#7C8B9E; --navy:#14336B; --ui:#14336B; --ui-ink:#FFFFFF;
+  --land:#EFECE6; --border:#C9C4BA;
+  --dem:#3b5bdb; --rep:#e03131;
+  --f-display:"Poppins",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --radius:4px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0E1422; --paper-alt:#141B2C; --panel:#162036; --hairline:#26304A;
+  --ink:#EEF2F8; --body:#BAC4D4; --muted:#8392A8; --navy:#9FC2F2; --ui:#D8E6F2; --ui-ink:#0B1220;
+  --land:#18213A; --border:#34405C; --dem:#6681f2; --rep:#f05252; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0E1422; --paper-alt:#141B2C; --panel:#162036; --hairline:#26304A;
+  --ink:#EEF2F8; --body:#BAC4D4; --muted:#8392A8; --navy:#9FC2F2; --ui:#D8E6F2; --ui-ink:#0B1220;
+  --land:#18213A; --border:#34405C; --dem:#6681f2; --rep:#f05252; color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:16px/1.5 var(--f-body);-webkit-font-smoothing:antialiased;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 32px}
+a{color:var(--navy)}
+.wrap{max-width:1400px;margin:0 auto}
+
+/* brand bar */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--hairline)}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--navy)}
+.brand svg{height:26px;width:auto;display:block}
+.brand span{font:800 13px/1.05 var(--f-display);letter-spacing:-.01em}
+.bar nav{display:flex;gap:20px;font:500 14px var(--f-display)}
+.bar nav a{color:var(--body);text-decoration:none}
+.bar nav a{white-space:nowrap}
+@media (max-width:600px){.bar nav a+a{display:none}}
+.bar nav a:hover{color:var(--navy);text-decoration:underline}
+
+/* title + controls band */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 28px;padding:12px 0 10px}
+.titles{display:grid;gap:2px;min-width:0}
+.eyebrow{font:600 11px/1.3 var(--f-display);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+h1{font:800 clamp(26px,3vw,36px)/1.05 var(--f-display);margin:0;letter-spacing:-.02em;color:var(--ink)}
+h1 .y{font-variant-numeric:tabular-nums}
+h1 .arrow{color:var(--muted);font-weight:500;padding:0 .12em}
+.controls{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.group{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.label{font:600 10.5px/1 var(--f-display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.chip{font:600 12.5px/1 var(--f-display);border:1px solid var(--border);background:var(--panel);color:var(--ink);
+  padding:7px 9px;border-radius:var(--radius);cursor:pointer;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip:hover{border-color:var(--navy)}
+.chip[aria-pressed="true"]{background:var(--ui);color:var(--ui-ink);border-color:var(--ui)}
+.chip:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+select{font:500 13px var(--f-display);color:var(--ink);background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:5px 6px}
+input[type=range]{width:90px;accent-color:var(--navy)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* map */
+.stage{position:relative;margin:0 auto;width:100%;touch-action:pan-y}
+canvas{display:block;width:100%;height:auto}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:9px 11px;
+  box-shadow:0 6px 20px rgb(11 18 32 / .14);font-size:14px;min-width:200px;z-index:2}
+.tip h4{margin:0 0 4px;font:700 14px/1.2 var(--f-display);color:var(--ink)}
+.tip .row{display:flex;justify-content:space-between;gap:14px;font-variant-numeric:tabular-nums;color:var(--body)}
+.tip .row b{color:var(--ink);font-weight:600}
+.tip .flag{margin-top:6px;color:var(--muted);font-size:12.5px;max-width:230px}
+
+/* legend: one line under the map */
+.legend{display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:center;align-items:center;color:var(--body);font-size:13.5px;padding-top:6px}
+.legend .k{display:inline-flex;align-items:center;gap:8px}
+.ramp{display:inline-grid;gap:2px;width:80px}.ramp i{display:block;height:6px;border-radius:1px}
+.ramp .rd{background:linear-gradient(90deg,color-mix(in srgb,var(--dem) 25%,transparent),var(--dem))}
+.ramp .rr{background:linear-gradient(90deg,color-mix(in srgb,var(--rep) 25%,transparent),var(--rep))}
+.rl{font-variant-numeric:tabular-nums}
+.dem{color:var(--dem)} .rep{color:var(--rep)}
+
+/* below the fold */
+.below{display:grid;gap:18px;margin-top:18px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:var(--hairline);border:1px solid var(--hairline);border-radius:var(--radius);overflow:hidden}
+.stat{background:var(--panel);padding:12px 14px;display:grid;gap:2px;min-width:0}
+.stat .n{font:800 26px/1.1 var(--f-display);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat .t{color:var(--muted);font-size:13.5px}
+.about{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:12px 40px;border-top:1px solid var(--hairline);padding-top:18px}
+@media (max-width:760px){.about{grid-template-columns:1fr}}
+.about h2{font:800 22px/1.15 var(--f-display);margin:0 0 6px;letter-spacing:-.01em}
+.about p{margin:0 0 10px;color:var(--body);max-width:68ch}
+.notes{color:var(--muted);font-size:14px;display:grid;gap:8px}
+.notes b{color:var(--body)}
+.notes a{color:var(--navy)}
+footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--hairline);display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between;color:var(--muted);font-size:14px}
+footer a{color:var(--navy);font-weight:600;text-decoration:none}
+footer a:hover{text-decoration:underline}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="bar">
+    <a class="brand" href="https://howtospeakdata.com" aria-label="How To Speak Data home">
+      <svg viewBox="0 0 200 220" aria-hidden="true"><path d="M40,10 L160,10 A30,30 0 0 1 190,40 L190,140 A30,30 0 0 1 160,170 L110,170 L60,212 L82,170 L40,170 A30,30 0 0 1 10,140 L10,40 A30,30 0 0 1 40,10 Z" fill="#FFFFFF" stroke="#0B1220" stroke-width="8" stroke-linejoin="round"/><path d="M41,150 L41,120 L69,120 L69,150 Z" fill="#14336B"/><path d="M71,150 L71,95 L99,95 L99,150 Z" fill="#1E5FD9"/><path d="M101,150 L101,70 L129,70 L129,150 Z" fill="#46B8E6"/><path d="M131,150 L131,48 L159,48 L159,150 Z" fill="#7DD3FC"/></svg>
+      <span>How To<br>Speak Data</span>
+    </a>
+    <nav aria-label="Page"><a href="#about">About this map</a><a href="https://howtospeakdata.com">howtospeakdata.com</a></nav>
+  </div>
+
+  <div class="top">
+    <div class="titles">
+      <div class="eyebrow" id="eyebrow">2026 US House vote vs 2024 presidential vote · shift in margin by county</div>
+      <h1 id="title"><span class="y" id="tA">2024</span><span class="arrow">→</span><span class="y" id="tB">2026</span></h1>
+    </div>
+    <div class="controls" role="toolbar" aria-label="Map controls">
+      <div class="group" id="presets"><span class="label">Election</span></div>
+      <div class="group">
+        <label class="sr" for="selA">From year</label><select id="selA"></select>
+        <span aria-hidden="true">→</span>
+        <label class="sr" for="selB">To year</label><select id="selB"></select>
+      </div>
+      <div class="group">
+        <label class="label" for="scale">Length</label>
+        <input id="scale" type="range" min="0.4" max="3" step="0.1" value="1.2">
+      </div>
+      <button class="chip" id="playBtn" aria-pressed="false">▶ Play</button>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="map" width="975" height="610" role="img" aria-label="Map of county-level shifts in vote margin"></canvas>
+    <div class="tip" id="tip" hidden></div>
+  </div>
+  <div class="legend" aria-label="Legend">
+    <span class="k"><svg width="30" height="22" aria-hidden="true"><polygon points="14,20 27,20 5,3" fill="var(--dem)"/></svg><span class="dem">More Democratic</span></span>
+    <span class="k"><svg width="30" height="22" aria-hidden="true"><polygon points="3,20 16,20 25,3" fill="var(--rep)"/></svg><span class="rep">More Republican</span></span>
+    <span class="k"><svg width="30" height="22" aria-hidden="true"><polygon points="2,20 7,20 5,6" fill="var(--muted)"/><polygon points="14,20 27,20 21,6" fill="var(--muted)"/></svg><span id="baseLbl">Triangle base = votes cast</span></span>
+    <span class="k" id="countedKey" hidden><span class="ramp" aria-hidden="true"><i class="rd"></i><i class="rr"></i></span><span class="rl">% counted, 30 → 100</span></span>
+  </div>
+
+  <div class="below">
+    <div class="summary" id="summary"></div>
+
+    <section class="about" id="about">
+      <div>
+        <h2>How to read it</h2>
+        <p id="dek">Each triangle is a county. It leans left and turns blue where the Democratic margin grew, and leans right and turns red where the Republican margin grew. Length shows the size of the shift; the base shows how many votes were cast. Hover or tap a county for its numbers.</p>
+      </div>
+      <div class="notes">
+        <div><b>Data:</b> 2000–2016 county returns from the <a href="https://github.com/MEDSL/county-returns" target="_blank" rel="noopener">MIT Election Data + Science Lab</a>; 2020 and 2024 from Tony McGovern's compilation of Fox News, Politico, Guardian and New York Times results (<a href="https://github.com/tonmcg/US_County_Level_Election_Results_08-24" target="_blank" rel="noopener">github.com/tonmcg</a>). Map: <a href="https://github.com/topojson/us-atlas" target="_blank" rel="noopener">us-atlas</a> (Census cartographic boundaries). Margin = (Dem − Rep) ÷ total votes; shift = later margin − earlier margin, in percentage points.</div>
+        <div><b>Quirks:</b> Alaska reports by state house district, so it is shown as one statewide triangle. Connecticut reported by new planning regions in 2024, so any comparison with 2024 shows Connecticut as one statewide triangle. DC wards are combined, and Kansas City and the former Bedford city, VA are folded into their counties.</div>
+        <div><b>2026:</b> U.S. House results by county from the New York Times results pages (Associated Press data), downloaded 6 November 2026 while counting was still under way; the “% counted” shading shows how much of the expected vote was in. House districts are added up within each county. Races where the top two finishers weren't a Democrat and a Republican (uncontested seats, California's same-party runoffs, Alaska's race against an independent) are left out. Where a county is only partly covered by such a race, the 2024→2026 shift compares the contested part with the 2024 presidential margin in that same part, and the county is left out of other comparisons with 2026. A midterm House vote and a presidential vote are different contests, so read the 2026 shifts as a change in party strength, not a like-for-like swing.</div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <span>Made by Andy Cotgreave · <a href="https://howtospeakdata.com">How To Speak Data</a></span>
+    <span>Design inspired by the 2026 election-night swing maps</span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+const DATA = /*DATA*/null;
+const YEARS = Object.keys(DATA.votes).map(Number).sort();
+const W = 975, H = 610;
+const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
+const tip = document.getElementById('tip'), stage = document.getElementById('stage');
+const statesGeo = topojson.feature(DATA.statesTopo, DATA.statesTopo.objects.states);
+const stateMesh = topojson.mesh(DATA.statesTopo, DATA.statesTopo.objects.states, (a,b)=>a!==b);
+const nation = topojson.feature(DATA.statesTopo, DATA.statesTopo.objects.nation);
+const stateName = f => (DATA.states[f.slice(0,2)] || [0,0,''])[2];
+let A = 2024, B = 2026, K = 1.2, pts = [], delaunay = null, hover = null;
+
+function cssVar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+
+// Pair two years: county where both match; a whole state folds to one point if either year reports it statewide.
+function compute(a, b){
+  const va = DATA.votes[a], vb = DATA.votes[b], out = [];
+  const folded = new Set(Object.keys(va).concat(Object.keys(vb)).filter(k=>k[0]==='S').map(k=>k.slice(1)));
+  const agg = {};
+  for (const [v, slot] of [[va,0],[vb,1]]) for (const k in v) {
+    const st = k[0]==='S' ? k.slice(1) : k.slice(0,2);
+    if (folded.has(st)) { const g = agg[st] ||= [[0,0,0],[0,0,0]]; for (let i=0;i<3;i++) g[slot][i]+=v[k][i]; }
+  }
+  for (const st in agg) { const [x0,y0] = agg[st][0], [x1] = agg[st][1];
+    if (agg[st][0][2] && agg[st][1][2]) { const c = DATA.states[st]; out.push(mk('S'+st, c[0], c[1], c[2] + ' (statewide)', agg[st][0], agg[st][1])); } }
+  for (const f in vb) {
+    if (f[0]==='S' || folded.has(f.slice(0,2))) continue;
+    const c = DATA.counties[f]; if (!c || !va[f] || !va[f][2] || !vb[f][2]) continue;
+    const pa = va[f][4] === 1, pb = vb[f][4] === 1;           // 2026 county only partly D-vs-R
+    if (pa) continue;
+    if (pb) {                                                  // compare like-for-like pieces, only against 2024
+      if (a !== 2024 || vb[f][5] == null) continue;
+      const p = mk(f, c[0], c[1], c[2], va[f], vb[f]); p.m0 = vb[f][5]/10000; p.swing = (p.m1-p.m0)*100; p.partial = true; out.push(p); continue;
+    }
+    out.push(mk(f, c[0], c[1], c[2], va[f], vb[f]));
+  }
+  return out;
+}
+function mk(id, x, y, name, r0, r1){
+  const m0 = (r0[0]-r0[1])/r0[2], m1 = (r1[0]-r1[1])/r1[2];
+  return {id, x, y, name, m0, m1, swing:(m1-m0)*100, votes:r1[2], r0, r1, counted: r1.length > 3 ? r1[3] : 100};
+}
+
+const baseW = v => Math.min(16, Math.max(1.4, Math.sqrt(v) * 0.02));   // base width in px ∝ √votes
+const ANG = 38 * Math.PI/180;                               // lean from vertical
+function tri(p){
+  const L = Math.min(Math.abs(p.swing) * K * (B === 2026 ? 1.1 : 2.4), 120), s = p.swing >= 0 ? -1 : 1, w = baseW(p.votes);
+  return [[p.x - w/2, p.y], [p.x + w/2, p.y], [p.x + s*Math.sin(ANG)*L, p.y - Math.cos(ANG)*L]];
+}
+
+function draw(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), cw = canvas.clientWidth || W;
+  const sc = cw / W; canvas.width = Math.round(cw*dpr); canvas.height = Math.round(H*sc*dpr);
+  ctx.setTransform(dpr*sc,0,0,dpr*sc,0,0);
+  ctx.clearRect(0,0,W,H);
+  const path = d3.geoPath(null, ctx);
+  ctx.beginPath(); path(nation); ctx.fillStyle = cssVar('--land'); ctx.fill();
+  ctx.beginPath(); path(stateMesh); ctx.strokeStyle = cssVar('--border'); ctx.lineWidth = .7; ctx.stroke();
+  ctx.beginPath(); path(nation); ctx.lineWidth = .9; ctx.stroke();
+  const dem = cssVar('--dem'), rep = cssVar('--rep');
+  // smaller votes on top so big metros don't bury rural counties' tips
+  const order = pts.slice().sort((a,b)=>b.votes-a.votes);
+  ctx.globalAlpha = .9;
+  for (const p of order){
+    const t = tri(p); ctx.beginPath(); ctx.moveTo(...t[0]); ctx.lineTo(...t[1]); ctx.lineTo(...t[2]); ctx.closePath();
+    ctx.globalAlpha = p.counted >= 100 ? .9 : .25 + .65*Math.max(0, Math.min(1, (p.counted-30)/70));
+    ctx.fillStyle = p.swing >= 0 ? dem : rep; ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  if (hover){
+    const t = tri(hover); ctx.beginPath(); ctx.moveTo(...t[0]); ctx.lineTo(...t[1]); ctx.lineTo(...t[2]); ctx.closePath();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = cssVar('--ink'); ctx.stroke();
+    ctx.beginPath(); ctx.arc(hover.x, hover.y, 3, 0, 7); ctx.fillStyle = cssVar('--ink'); ctx.fill();
+  }
+}
+
+const fmtM = m => m === 0 ? 'Even' : (m > 0 ? 'D+' : 'R+') + Math.abs(m*100).toFixed(1);
+const fmtS = s => (s >= 0 ? 'D +' : 'R +') + Math.abs(s).toFixed(1) + ' pts';
+const fmtN = d3.format(',');
+const yl = y => y === 2026 ? '2026 House' : y + ' pres.';
+
+function summarize(){
+  const dem = pts.filter(p=>p.swing>0).length, rep = pts.filter(p=>p.swing<0).length;
+  const tot = r => pts.reduce((a,p)=>(a[0]+=p[r][0],a[1]+=p[r][1],a[2]+=p[r][2],a),[0,0,0]);
+  const t0 = tot('r0'), t1 = tot('r1'), m0 = (t0[0]-t0[1])/t0[2], m1 = (t1[0]-t1[1])/t1[2], nat = (m1-m0)*100;
+  const big = pts.filter(p=>p.votes>50000).sort((a,b)=>Math.abs(b.swing)-Math.abs(a.swing))[0];
+  const share = Math.round(100*Math.max(dem,rep)/pts.length);
+  document.getElementById('summary').innerHTML = `
+    <div class="stat"><span class="n ${nat>=0?'dem':'rep'}">${fmtS(nat)}</span><span class="t">${B===2026?'Shift across counties shown':'National margin shift'} (${fmtM(m0)} → ${fmtM(m1)})</span></div>
+    <div class="stat"><span class="n dem">${fmtN(dem)}</span><span class="t">counties moved toward the Democrats</span></div>
+    <div class="stat"><span class="n rep">${fmtN(rep)}</span><span class="t">counties moved toward the Republicans</span></div>
+    <div class="stat"><span class="n">${share}%</span><span class="t">of counties moved the same way</span></div>
+    ${big ? `<div class="stat"><span class="n ${big.swing>=0?'dem':'rep'}">${fmtS(big.swing)}</span><span class="t">Biggest shift, 50k+ votes: ${big.name}${big.id[0]==='S'?'':', '+stateName(big.id)}</span></div>`:''}`;
+  document.getElementById('dek').dataset.n = pts.length;
+}
+
+function update(){
+  pts = compute(A, B);
+  delaunay = d3.Delaunay.from(pts, p=>p.x, p=>p.y);
+  hover = null; tip.hidden = true;
+  const mid = B === 2026;
+  document.getElementById('eyebrow').textContent = mid ? (A===2024 ? '2026 US House vote vs 2024 presidential vote · shift in margin by county' : `2026 US House vote vs ${A} presidential vote · shift in margin by county`) : 'US presidential vote · shift in margin by county';
+  document.getElementById('countedKey').hidden = !mid;
+  document.getElementById('baseLbl').textContent = mid ? 'Triangle base = votes counted' : 'Triangle base = votes cast';
+  document.getElementById('tA').textContent = A; document.getElementById('tB').textContent = B;
+  document.querySelectorAll('#presets .chip').forEach(c=>c.setAttribute('aria-pressed', String(+c.dataset.a===A && +c.dataset.b===B)));
+  selA.value = A; selB.value = B;
+  canvas.setAttribute('aria-label', `Map of shift in presidential margin by county, ${A} to ${B}`);
+  summarize(); draw();
+}
+
+// controls
+const presets = document.getElementById('presets');
+for (let i=1;i<YEARS.length;i++){ const mid = YEARS[i]===2026;
+  const b = document.createElement('button'); b.className='chip'; b.dataset.a=YEARS[i-1]; b.dataset.b=YEARS[i];
+  b.textContent = `${YEARS[i-1]}→${String(YEARS[i]).slice(2)}${mid?' House':''}`; b.setAttribute('aria-label', `${YEARS[i-1]} to ${YEARS[i]}${mid?' (House midterm)':''}`);
+  b.onclick = ()=>{ stopPlay(); A=YEARS[i-1]; B=YEARS[i]; update(); }; presets.append(b);
+}
+const selA = document.getElementById('selA'), selB = document.getElementById('selB');
+for (const y of YEARS){ selA.add(new Option(y,y)); selB.add(new Option(y,y)); }
+selA.onchange = ()=>{ stopPlay(); A=+selA.value; if (A>=B) B = YEARS.find(y=>y>A) || A; if (A===B) A = YEARS[YEARS.indexOf(B)-1]; update(); };
+selB.onchange = ()=>{ stopPlay(); B=+selB.value; if (B<=A) A = [...YEARS].reverse().find(y=>y<B) || B; if (A===B) B = YEARS[YEARS.indexOf(A)+1]; update(); };
+document.getElementById('scale').oninput = e=>{ K=+e.target.value; draw(); };
+
+let timer = null; const playBtn = document.getElementById('playBtn');
+function stopPlay(){ clearInterval(timer); timer=null; playBtn.textContent='▶ Play'; playBtn.setAttribute('aria-pressed','false'); }
+playBtn.onclick = ()=>{
+  if (timer) return stopPlay();
+  playBtn.textContent='❚❚ Pause'; playBtn.setAttribute('aria-pressed','true');
+  const step = ()=>{ let i = YEARS.indexOf(B); if (YEARS.indexOf(A)!==i-1 || i>=YEARS.length-1) i = 0; A=YEARS[i]; B=YEARS[i+1]; update(); };
+  step(); timer = setInterval(step, 2200);
+};
+
+// hover
+function locate(ev){
+  const r = canvas.getBoundingClientRect(), sc = W / r.width;
+  const x = (ev.clientX - r.left)*sc, y = (ev.clientY - r.top)*sc;
+  const i = delaunay.find(x, y); const p = pts[i];
+  return (p && Math.hypot(p.x-x, p.y-y) < 22) ? {p, cx: ev.clientX - r.left, cy: ev.clientY - r.top, rw: r.width} : null;
+}
+function showTip(h){
+  if (!h){ if (hover){ hover=null; draw(); } tip.hidden = true; return; }
+  if (hover !== h.p){ hover = h.p; draw(); }
+  const p = h.p, st = p.id[0]==='S' ? '' : `, ${stateName(p.id)}`;
+  tip.innerHTML = `<h4>${p.name}${st}</h4>
+    <div class="row"><span>${yl(A)} margin</span><b>${fmtM(p.m0)}</b></div>
+    <div class="row"><span>${yl(B)} margin</span><b>${fmtM(p.m1)}</b></div>
+    <div class="row"><span>Shift</span><b class="${p.swing>=0?'dem':'rep'}">${fmtS(p.swing)}</b></div>
+    <div class="row"><span>Votes ${B}</span><b>${fmtN(p.votes)}</b></div>${p.counted<100?`<div class="row"><span>% counted</span><b>${p.counted}%</b></div>`:''}${p.partial?'<div class="flag">Part of this county had no Dem-vs-Rep House race; the shift covers only the contested part.</div>':''}`;
+  tip.hidden = false;
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = h.cx + 14; if (left + tw > h.rw) left = h.cx - tw - 14; if (left < 0) left = 4;
+  tip.style.left = left + 'px'; tip.style.top = Math.max(0, h.cy - th - 10) + 'px';
+}
+canvas.addEventListener('pointermove', ev=>showTip(locate(ev)));
+canvas.addEventListener('pointerleave', ()=>showTip(null));
+canvas.addEventListener('pointerdown', ev=>showTip(locate(ev)));
+
+// Fit the whole map in the viewport on desktop: cap its width by the height left below the title band.
+const legendEl = document.querySelector('.legend');
+function fit(){
+  if (innerWidth < 900) { stage.style.maxWidth = ''; return; }
+  const top = stage.getBoundingClientRect().top + scrollY;
+  const avail = innerHeight - top - legendEl.offsetHeight - 14;
+  stage.style.maxWidth = Math.max(560, avail * W / H) + 'px';
+}
+let rz; addEventListener('resize', ()=>{ cancelAnimationFrame(rz); rz = requestAnimationFrame(()=>{ fit(); draw(); }); });
+document.fonts && document.fonts.ready.then(()=>{ fit(); draw(); });
+fit();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+new MutationObserver(draw).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+update();
+</script>
