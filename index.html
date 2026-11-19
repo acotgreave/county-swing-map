@@ -234,9 +234,8 @@ const target = p => ({ th: p.swing >= 0 ? -ANG : ANG, L: lenFor(p), w: baseW(p.v
 
 let shown = new Map(), order = [], anim = null, onDone = null;
 let speed = 1, playing = false, loopOn = false, wind = 0;
-const easeSoft = t => t*t*(3 - 2*t);
-// Damped swing: overshoots the new heading, rocks back, settles. f varies slightly per county so they don't move in lockstep.
-const easeVane = (t, f) => t >= 1 ? 1 : 1 - Math.exp(-4 * t) * Math.cos(3 * Math.PI * f * t) * (1 - t);
+// One smooth ease-in-out shared by heading, length, width and opacity, so each triangle turns and resizes together.
+const easeMove = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
 const hash = id => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return (h >>> 0) / 4294967296; };
 
 function transition(animate){
@@ -258,12 +257,12 @@ function transition(animate){
 
 function tick(now){
   if (anim) {
-    const t = clamp01((now - anim.t0) / anim.dur), es = easeSoft(t);
-    for (const s of order) {
-      s.cur.th = lerp(s.from.th, s.to.th, easeVane(t, s.f));                        // every vane turns at once
-      s.cur.L = lerp(s.from.L, s.to.L, es);
-      s.cur.w = lerp(s.from.w, s.to.w, es);
-      s.cur.a = lerp(s.from.a, s.to.a, es);
+    const t = clamp01((now - anim.t0) / anim.dur), e = easeMove(t);
+    for (const s of order) {                                                          // every vane turns at once, resizing as it turns
+      s.cur.th = lerp(s.from.th, s.to.th, e);
+      s.cur.L = lerp(s.from.L, s.to.L, e);
+      s.cur.w = lerp(s.from.w, s.to.w, e);
+      s.cur.a = lerp(s.from.a, s.to.a, e);
     }
     if (t >= 1) {
       anim = null;
