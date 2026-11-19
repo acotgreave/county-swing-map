@@ -55,6 +55,7 @@ h1 .arrow{color:var(--muted);font-weight:500;padding:0 .12em}
   padding:7px 9px;border-radius:var(--radius);cursor:pointer;font-variant-numeric:tabular-nums;white-space:nowrap}
 .chip:hover{border-color:var(--navy)}
 .chip[aria-pressed="true"]{background:var(--ui);color:var(--ui-ink);border-color:var(--ui)}
+#presets .chip{transition:background-color var(--chip-dur,0ms) cubic-bezier(.65,0,.35,1),color var(--chip-dur,0ms) cubic-bezier(.65,0,.35,1),border-color var(--chip-dur,0ms) cubic-bezier(.65,0,.35,1)}
 .chip:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
 select{font:500 13px var(--f-display);color:var(--ink);background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:5px 6px}
 input[type=range]{width:90px;accent-color:var(--navy)}
@@ -228,8 +229,9 @@ let speed = 1, playing = false, loopOn = false, wind = 0;
 const easeMove = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
 const hash = id => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return (h >>> 0) / 4294967296; };
 
+const moveMs = animate => (!animate || REDUCED) ? 0 : (playing ? 2400 : 1400) / speed;
 function transition(animate){
-  const dur = (!animate || REDUCED) ? 0 : (playing ? 2400 : 1400) / speed;
+  const dur = moveMs(animate);
   const next = new Map();
   for (const p of pts) {
     const old = shown.get(p.id), to = target(p);
@@ -282,10 +284,10 @@ function render(now){
   ctx.beginPath(); path(nation); ctx.fillStyle = cssVar('--land'); ctx.fill();
   ctx.beginPath(); path(stateMesh); ctx.strokeStyle = cssVar('--border'); ctx.lineWidth = .7; ctx.stroke();
   ctx.beginPath(); path(nation); ctx.lineWidth = .9; ctx.stroke();
-  const dem = cssVar('--dem'), rep = cssVar('--rep'), mid = cssVar('--muted');
-  const toDem = d3.interpolateLab(mid, dem), toRep = d3.interpolateLab(mid, rep);
-  // colour follows the heading: leaning left is blue, leaning right is red, grey as it passes upright
-  const colour = th => { const k = th / ANG; return k <= -.999 ? dem : k >= .999 ? rep : k < 0 ? toDem(clamp01(-k)) : toRep(clamp01(k)); };
+  const dem = cssVar('--dem'), rep = cssVar('--rep');
+  const blend = d3.interpolateLab(dem, rep);
+  // colour follows the heading: leaning left is blue, leaning right is red, blending straight between the two as it turns
+  const colour = th => { const k = clamp01((th / ANG + 1) / 2); return k <= .001 ? dem : k >= .999 ? rep : blend(k); };
   const tr = now / 700;
   for (const s of order) {
     const c = s.cur; if (c.a < .01 || c.L < .05) continue;
@@ -333,6 +335,7 @@ function update(animate = true){
   document.getElementById('countedKey').hidden = !mid;
   document.getElementById('baseLbl').textContent = mid ? 'Triangle base = votes counted' : 'Triangle base = votes cast';
   document.getElementById('tA').textContent = A; document.getElementById('tB').textContent = B;
+  presets.style.setProperty('--chip-dur', moveMs(animate) + 'ms');
   document.querySelectorAll('#presets .chip').forEach(c=>c.setAttribute('aria-pressed', String(+c.dataset.a===A && +c.dataset.b===B)));
   selA.value = A; selB.value = B;
   canvas.setAttribute('aria-label', `Map of shift in presidential margin by county, ${A} to ${B}`);
@@ -365,7 +368,7 @@ function advance(){
   let i = YEARS.indexOf(B), wrap = false;
   if (YEARS.indexOf(A) !== i-1 || i >= YEARS.length-1) { i = 0; wrap = true; }
   A = YEARS[i]; B = YEARS[i+1];
-  onDone = () => { if (playing) holdTimer = setTimeout(advance, 1600 / speed); };   // hold on each election, then move on
+  onDone = () => { if (playing) holdTimer = setTimeout(advance, 1100 / speed); };   // hold on each election, then move on
   update(!wrap);
 }
 playBtn.onclick = ()=>{
