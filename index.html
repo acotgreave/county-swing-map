@@ -239,19 +239,24 @@ let speed = 1, playing = false, loopOn = false, wind = 0;
 const easeMove = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
 const hash = id => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return (h >>> 0) / 4294967296; };
 
-const moveMs = animate => (!animate || REDUCED) ? 0 : (playing ? 2400 : 1400) / speed;
+// animate: true = turn to the new headings, 'fade' = cross-fade (used on the loop back to the start), false = instant
+const moveMs = animate => (!animate || REDUCED) ? 0 : (animate === 'fade' ? 1000 : playing ? 2400 : 1400) / speed;
 function transition(animate){
-  const dur = moveMs(animate);
+  const dur = moveMs(animate), fade = dur && animate === 'fade';
   const next = new Map();
   for (const p of pts) {
     const old = shown.get(p.id), to = target(p);
-    const from = old ? { ...old.cur } : { th: to.th, L: 0, w: to.w, a: 0 };       // a new county grows out from its base
+    const from = fade ? { ...to, a: 0 }                                                // fade in already at the new heading
+      : old ? { ...old.cur } : { th: to.th, L: 0, w: to.w, a: 0 };                    // a new county grows out from its base
     next.set(p.id, { id: p.id, x: p.x, y: p.y, p, f: .9 + .2 * hash(p.id), from, to, cur: dur ? { ...from } : { ...to } });
   }
-  if (dur) for (const [id, old] of shown) if (!next.has(id))                       // counties not in this pair shrink away
+  let ghosts = [];
+  if (fade) ghosts = [...shown.values()].map(old =>                                    // the old map fades out in place
+    ({ id: old.id, x: old.x, y: old.y, gone: true, from: { ...old.cur }, to: { ...old.cur, a: 0 }, cur: { ...old.cur } }));
+  else if (dur) for (const [id, old] of shown) if (!next.has(id))                      // counties not in this pair shrink away
     next.set(id, { id, x: old.x, y: old.y, f: old.f, gone: true, from: { ...old.cur }, to: { ...old.cur, L: 0, a: 0 }, cur: { ...old.cur } });
   shown = next;
-  order = [...shown.values()].sort((a, b) => b.to.w - a.to.w);                     // big metros underneath
+  order = ghosts.concat([...shown.values()].sort((a, b) => b.to.w - a.to.w));        // big metros underneath
   anim = dur ? { t0: performance.now(), dur } : null;
   if (!dur && onDone) { const f = onDone; onDone = null; setTimeout(f, 0); }
   kick();
@@ -374,12 +379,12 @@ const playBtn = document.getElementById('playBtn'); let holdTimer = null;
 function stopPlay(){ playing = false; clearTimeout(holdTimer); onDone = null; playBtn.textContent='▶ Play'; playBtn.setAttribute('aria-pressed','false'); }
 function advance(){
   if (!playing) return;
-  // loops until paused; the jump from the last pair back to the first snaps instead of animating
+  // loops until paused; the jump from the last pair back to the first cross-fades instead of turning
   let i = YEARS.indexOf(B), wrap = false;
   if (YEARS.indexOf(A) !== i-1 || i >= YEARS.length-1) { i = 0; wrap = true; }
   A = YEARS[i]; B = YEARS[i+1];
   onDone = () => { if (playing) holdTimer = setTimeout(advance, 1100 / speed); };   // hold on each election, then move on
-  update(!wrap);
+  update(wrap ? 'fade' : true);
 }
 playBtn.onclick = ()=>{
   if (playing) return stopPlay();
