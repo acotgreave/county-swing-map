@@ -12,7 +12,7 @@ By Andy Cotgreave, [How To Speak Data](https://howtospeakdata.com).
 |---|---|
 | 2000–2016 | [MIT Election Data + Science Lab, county presidential returns](https://github.com/MEDSL/county-returns) |
 | 2020, 2024 | [Tony McGovern, US county-level presidential results](https://github.com/tonmcg/US_County_Level_Election_Results_08-24) |
-| 2026 | U.S. House results by county from the New York Times results pages (Associated Press data), downloaded 6 November 2026 while counting was still under way |
+| 2026 | U.S. House results by county from the New York Times results pages (Associated Press data), updated 19 November 2026 from the per-race results files, when almost all counties had reported 95% or more of the expected vote |
 | Map | [us-atlas](https://github.com/topojson/us-atlas) (Census cartographic boundaries, Albers USA) |
 
 **Method:** margin = (Dem − Rep) ÷ total votes; shift = later margin − earlier margin, in percentage points.
@@ -36,6 +36,6 @@ The site is a single static `index.html` with the processed data embedded. The s
    - `medsl.csv`
    - McGovern's 2020 and 2024 CSVs
    - us-atlas `counties-albers-10m.json`
-   - the NYT `results-house.json` saved as `dl2026/house.json`
+   - the NYT `results-house.json` saved as `dl2026/house.json`, then `node fetch-races.js`. The overview file no longer includes county rows, so this script downloads the county-level file for each House race and merges them into `dl2026/house-full.json`.
 2. Run `npm i d3-dsv d3-geo topojson-client`, then `node build.js && node build2026.js`. This writes `data.json`.
 3. Replace `/*DATA*/null` in `template.html` with the contents of `data.json`.

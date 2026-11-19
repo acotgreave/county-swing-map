@@ -1,7 +1,7 @@
 // Adds 2026 U.S. House votes by county (NYT results JSON, AP data) to data.json.
 // votes['2026'][fips] = [dem, rep, total, eevp%, partial(0|1), base2024 margin ×10000 over the same pieces]
 const fs = require('fs'), path = require('path');
-const house = JSON.parse(fs.readFileSync(path.join(__dirname, 'dl2026', 'house.json'), 'utf8'));
+const house = JSON.parse(fs.readFileSync(path.join(__dirname, 'dl2026', 'house-full.json'), 'utf8'));
 const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'data.json'), 'utf8'));
 
 const acc = {}; // fips -> {d,r,t,exp,partial,bw,bm}
@@ -18,20 +18,21 @@ for (const race of house.races) {
   if (!contested) skipped.push(race.nyt_id.replace('-2026-11-03', ''));
   races++;
   const units = race.reporting_units || [];
-  // pick pieces: Alaska -> state unit; otherwise county units, or city/other pieces where a county unit is missing
+  // pick pieces: Alaska -> state unit; otherwise county units, town units, or city/other pieces
   let pieces;
   if (units[0]?.state_postal === 'AK' || units.some(u => u.state_postal === 'AK')) {
     pieces = units.filter(u => u.level === 'state').map(u => ({ u, f: 'S02' }));
   } else {
     const byCounty = {};
     for (const u of units) {
-      if (!u.fips_county || !['county', 'city', 'other'].includes(u.level)) continue;
+      if (!u.fips_county || !['county', 'township', 'city', 'other'].includes(u.level)) continue;
       (byCounty[u.fips_state + u.fips_county] ||= []).push(u);
     }
     pieces = [];
     for (const f in byCounty) {
-      const cu = byCounty[f].filter(u => u.level === 'county');
-      for (const u of (cu.length ? cu : byCounty[f])) pieces.push({ u, f });
+      // county rows if present; else New England town rows (wards are sub-parts of towns, so skipped); else city/other pieces
+      const cu = byCounty[f].filter(u => u.level === 'county'), tu = byCounty[f].filter(u => u.level === 'township');
+      for (const u of (cu.length ? cu : tu.length ? tu : byCounty[f])) pieces.push({ u, f });
     }
   }
   for (const { u, f } of pieces) {
